@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trò chơi kéo thả - Sắp xếp lệnh Python</title>
+<style>
+  :root { --blue:#1265b4; --blue2:#e9f5ff; --ink:#172b4d; --green:#1c9b5b; --red:#d94b4b; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: "Segoe UI", Arial, sans-serif; background:linear-gradient(135deg,#eaf6ff,#f8fbff 55%,#fff7df); color:var(--ink); }
+  .wrap { max-width:1440px; margin:auto; padding:12px 16px 18px; }
+  header { background:linear-gradient(120deg,#0755a0,#1889d5); color:white; padding:16px; border-radius:22px; box-shadow:0 8px 22px #145b9b26; text-align:center; }
+  h1 { margin:0 0 6px; font-size:clamp(23px,3vw,34px); }
+  header p { margin:0; font-size:17px; line-height:1.5; }
+  .stats { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin:10px 0; }
+  .stat { background:white; border:1px solid #cfe5fb; border-radius:12px; padding:8px 13px; font-weight:700; }
+  .panel { background:#ffffffd9; border:2px solid #c4e4ff; border-radius:18px; padding:14px; margin-top:10px; box-shadow:0 5px 18px #124f8010; }
+  h2 { margin:0 0 8px; color:#0755a0; font-size:22px; }
+  .hint { margin:0 0 16px; color:#4d6380; line-height:1.5; }
+  .workspace { display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:stretch; }
+  .code-list, .answer-list { min-height:250px; border-radius:15px; padding:10px; background:#f2f8ff; border:2px dashed #a8d5ff; }
+  .answer-list { background:#f5fff8; border-color:#a8dfbd; }
+  .list-title { font-weight:800; margin:0 0 10px; }
+  .command { user-select:none; cursor:grab; touch-action: manipulation; background:white; border:1px solid #c7dff5; border-left:5px solid #2786d5; border-radius:10px; padding:9px 9px; margin:6px 0; font-family:Consolas,Monaco,monospace; font-size:clamp(13px,1.8vw,16px); overflow-wrap:anywhere; box-shadow:0 2px 5px #1a4b7210; }
+  .command:active { cursor:grabbing; }
+  .command.dragging { opacity:.4; }
+  .command .grip { color:#7b91aa; margin-right:7px; font-family:Arial,sans-serif; }
+  .slot { color:#8aa0b6; font-size:13px; text-align:center; padding:5px; border:1px dashed #c7d8e6; border-radius:8px; margin:5px 0; }
+  .buttons { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  button { border:0; border-radius:12px; padding:12px 18px; font-size:16px; font-weight:800; cursor:pointer; }
+  button:focus-visible, .command:focus-visible { outline:3px solid #ffbd2e; outline-offset:3px; }
+  .primary { background:#1265b4; color:white; }
+  .secondary { background:#e7f2fc; color:#0755a0; }
+  .check { background:#168b50; color:white; }
+  .feedback { margin-top:14px; border-radius:12px; padding:13px 15px; line-height:1.5; display:none; }
+  .feedback.show { display:block; }
+  .feedback.good { background:#e6f8ed; border:1px solid #9eddb5; color:#126b3b; }
+  .feedback.try { background:#fff4df; border:1px solid #f4d28d; color:#7c4b00; }
+  .solution { display:none; margin-top:14px; background:#10243b; color:#e9f6ff; border-radius:12px; padding:15px; overflow:auto; font:15px/1.8 Consolas,monospace; white-space:pre; }
+  .solution.show { display:block; }
+  .footer { text-align:center; margin-top:18px; color:#61748b; font-size:13px; }
+  .sound-toggle { display:inline-flex; align-items:center; gap:7px; background:#fff4d6; color:#7a4a00; border:1px solid #f1d38b; }
+  .sound-note { color:#61748b; font-size:13px; margin:10px 0 0; }
+  .online-panel { margin-top:14px; background:#f7fbff; border:1px solid #c4e4ff; border-radius:14px; padding:14px; }
+  .player-row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:10px 0; }
+  .player-row input { flex:1 1 220px; min-width:180px; border:1px solid #b8d4eb; border-radius:10px; padding:11px 12px; font:inherit; }
+  .online-status { font-size:13px; color:#526981; margin:8px 0; }
+  .table-wrap { overflow-x:auto; }
+  .leaderboard { width:100%; border-collapse:collapse; background:white; border-radius:10px; overflow:hidden; }
+  .leaderboard th,.leaderboard td { text-align:left; padding:9px 10px; border-bottom:1px solid #e2edf7; white-space:nowrap; }
+  .leaderboard th { background:#e8f4ff; color:#0755a0; }
+  .leaderboard tr:last-child td { border-bottom:0; }
+  @media (max-width:760px) { .workspace { grid-template-columns:1fr; } .panel { padding:12px; } .code-list,.answer-list { min-height:150px; } .wrap { padding:8px; } header { padding:14px 10px; } }
+  @media (min-width:761px) and (min-height:850px) { .wrap { padding-top:10px; } .command { padding:8px 10px; margin:5px 0; } }
+  @media (prefers-reduced-motion:no-preference) { .command { transition:box-shadow .15s, transform .15s; } .command:hover { box-shadow:0 4px 12px #1a4b7220; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🎯 Thử thách Python: Lát gạch nền</h1>
+    <p>Kéo các câu lệnh vào khu vực “Chương trình của em” và sắp xếp theo đúng thứ tự để tính chi phí lát nền.</p>
+  </header>
+
+  <div class="stats">
+    <div class="stat">📐 Diện tích: 12 × 5 m</div>
+    <div class="stat">🧱 Giá gạch: 150.000 đồng/m²</div>
+    <div class="stat">⭐ Điểm: <span id="score">0</span>/100</div>
+  </div>
+
+  <section class="panel">
+    <h2>🧩 Nhiệm vụ</h2>
+    <p class="hint">1. Kéo từng câu lệnh từ cột bên trái sang cột bên phải. 2. Kéo lên/xuống để đổi thứ tự. 3. Nhấn <b>Kiểm tra chương trình</b>. Trên điện thoại hoặc máy tính bảng, em có thể dùng các nút ↑ ↓ trên mỗi câu lệnh.</p>
+    <div class="workspace">
+      <div>
+        <p class="list-title">📦 Các câu lệnh đang xáo trộn</p>
+        <div class="code-list" id="bank" aria-label="Các câu lệnh đang xáo trộn"></div>
+      </div>
+      <div>
+        <p class="list-title">💻 Chương trình của em</p>
+        <div class="answer-list" id="answer" aria-label="Khu vực chương trình">
+          <div class="slot" id="emptyHint">Thả câu lệnh vào đây…</div>
+        </div>
+      </div>
+    </div>
+    <div class="buttons">
+      <button class="check" id="checkBtn">✓ Kiểm tra chương trình</button>
+      <button class="secondary" id="hintBtn">💡 Gợi ý</button>
+      <button class="secondary" id="resetBtn">↻ Chơi lại</button>
+      <button class="sound-toggle" id="soundBtn" aria-pressed="true">🔊 Âm thanh: bật</button>
+    </div>
+<div class="feedback" id="feedback" role="status" aria-live="polite"></div>
+    <div class="solution" id="solution"></div>
+  </section>
+  <section class="panel online-panel">
+    <h2>🏆 Bảng xếp hạng lớp học</h2>
+    <p class="hint">Nhập tên trước khi chơi. Khi nhấn kiểm tra, kết quả và thời gian sẽ được ghi nhận vào bảng xếp hạng chung nếu trò chơi đã kết nối cơ sở dữ liệu trực tuyến.</p>
+    <div class="player-row">
+      <label for="playerName"><b>👤 Tên học sinh:</b></label>
+      <input id="playerName" maxlength="40" autocomplete="nickname" placeholder="Ví dụ: Nguyễn Minh Anh">
+      <div class="stat">⏱️ Thời gian: <span id="timer">00:00</span></div>
+    </div>
+    <div class="online-status" id="onlineStatus" role="status">Chưa cấu hình bảng xếp hạng trực tuyến. Trò chơi vẫn hoạt động, nhưng kết quả chưa được chia sẻ giữa các máy.</div>
+    <div class="table-wrap">
+      <table class="leaderboard" aria-label="Bảng xếp hạng">
+        <thead><tr><th>Hạng</th><th>Học sinh</th><th>Điểm</th><th>Thời gian</th><th>Kết quả lúc</th></tr></thead>
+        <tbody id="leaderboardBody"><tr><td colspan="5">Chưa có dữ liệu bảng xếp hạng.</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+  <p class="footer">Hoạt động học tập • Lập trình Python cơ bản</p>
+</div>
+<script>
+const commands = [
+  {id:"comment", text:"# Chương trình tính chi phí lát gạch nền"},
+  {id:"length", text:"chieu_dai = 12"},
+  {id:"width", text:"chieu_rong = 5"},
+  {id:"price", text:"gia_gach = 150000"},
+  {id:"area", text:"dien_tich = chieu_dai * chieu_rong"},
+  {id:"cost", text:"chi_phi = dien_tich * gia_gach"},
+  {id:"print", text:"print('Chi phi cần mua gạch lát nền là:', chi_phi)"}
+];
+const correctOrder = commands.map(c => c.id);
+const bank = document.getElementById('bank');
+const answer = document.getElementById('answer');
+const feedback = document.getElementById('feedback');
+const solution = document.getElementById('solution');
+const scoreEl = document.getElementById('score');
+let draggedId = null;
+let hintUsed = false;
+let attempts = 0;
+let soundEnabled = true;
+let audioContext = null;
+let startedAt = null;
+let timerInterval = null;
+let elapsedSeconds = 0;
+
+// Cần điền URL và khóa anon của dự án Supabase để đồng bộ bảng xếp hạng giữa mọi người.
+const SUPABASE_URL = 'https://jcenqeaakpxtilvqxiwx.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_epJaI3ZdRUkHEdEswngwhQ_y00iqoOG';
+const LEADERBOARD_TABLE = 'python_game_results';
+
+function formatTime(totalSeconds) {
+  const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+  const sec = (totalSeconds % 60).toString().padStart(2, '0');
+  return `${m}:${sec}`;
+}
+function startTimer() {
+  if (startedAt !== null) return;
+  startedAt = Date.now();
+  timerInterval = setInterval(() => {
+    elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000);
+    document.getElementById('timer').textContent = formatTime(elapsedSeconds);
+  }, 250);
+}
+function stopTimer() {
+  if (startedAt !== null) {
+    elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000);
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+}
+function onlineConfigured() {
+  return SUPABASE_URL.startsWith('https://') && !SUPABASE_URL.includes('PASTE_') &&
+    SUPABASE_ANON_KEY.length > 20 && !SUPABASE_ANON_KEY.includes('PASTE_');
+}
+async function loadLeaderboard() {
+  const status = document.getElementById('onlineStatus');
+  if (!onlineConfigured()) return;
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/${LEADERBOARD_TABLE}?select=player_name,score,elapsed_seconds,created_at&order=score.desc,elapsed_seconds.asc&limit=20`;
+    const res = await fetch(url, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const rows = await res.json();
+    const body = document.getElementById('leaderboardBody');
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="5">Chưa có kết quả. Hãy là người đầu tiên tham gia!</td></tr>';
+    } else {
+      body.innerHTML = rows.map((r, i) => `<tr><td>${i + 1}</td><td>${escapeHTML(r.player_name)}</td><td>${Number(r.score)}/100</td><td>${formatTime(Number(r.elapsed_seconds) || 0)}</td><td>${r.created_at ? new Date(r.created_at).toLocaleString('vi-VN') : '—'}</td></tr>`).join('');
+    }
+    status.textContent = '🟢 Đã kết nối bảng xếp hạng trực tuyến. Kết quả được chia sẻ giữa những người dùng cùng đường link.';
+  } catch (e) {
+    status.textContent = '⚠️ Chưa tải được bảng xếp hạng. Hãy kiểm tra cấu hình Supabase và quyền truy cập.';
+  }
+}
+function escapeHTML(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+async function submitResult(score, completed) {
+  if (!onlineConfigured()) return;
+  const name = document.getElementById('playerName').value.trim();
+  if (!name) {
+    document.getElementById('onlineStatus').textContent = 'Nhập tên học sinh để lưu kết quả vào bảng xếp hạng.';
+    document.getElementById('playerName').focus();
+    return;
+  }
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${LEADERBOARD_TABLE}`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal'
+      },
+      body: JSON.stringify({ player_name: name.slice(0, 40), score, elapsed_seconds: elapsedSeconds, completed })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    document.getElementById('onlineStatus').textContent = '✅ Đã lưu kết quả vào bảng xếp hạng chung.';
+    await loadLeaderboard();
+  } catch (e) {
+    document.getElementById('onlineStatus').textContent = '⚠️ Không lưu được kết quả. Hãy kiểm tra cấu hình và quyền ghi dữ liệu.';
+  }
+}
+
+['pointerdown','keydown'].forEach(evt => document.addEventListener(evt, startTimer, { once: true }));
+function getAudioContext() {
+  if (!soundEnabled) return null;
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtx) return null;
+  if (!audioContext) audioContext = new AudioCtx();
+  if (audioContext.state === 'suspended') audioContext.resume();
+  return audioContext;
+}
+function playTone(freq, start, duration, type='sine', volume=0.16) {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
+  gain.gain.setValueAtTime(0.001, ctx.currentTime + start);
+  gain.gain.exponentialRampToValueAtTime(Math.min(volume * 1.8, 0.8), ctx.currentTime + start + 0.015);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration);
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.start(ctx.currentTime + start);
+  osc.stop(ctx.currentTime + start + duration + 0.03);
+}
+function playClap() {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  // Tạo nhiều tiếng vỗ tay ngắn bằng nhiễu âm thanh.
+  for (let i = 0; i < 7; i++) {
+    const start = ctx.currentTime + i * 0.13;
+    const duration = 0.075 + Math.random() * 0.045;
+    const buffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * duration), ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let j = 0; j < data.length; j++) {
+      const fade = Math.pow(1 - j / data.length, 2);
+      data[j] = (Math.random() * 2 - 1) * fade;
+    }
+    const source = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.value = 900;
+    gain.gain.value = 0.82;
+    source.buffer = buffer;
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    source.start(start);
+  }
+}
+function playDropSound() {
+  playTone(660, 0, 0.10, 'sine', 0.12);
+  playTone(880, 0.055, 0.12, 'sine', 0.10);
+}
+function playCelebration() {
+  playClap();
+  [[523,0],[659,.13],[784,.26],[1047,.42],[784,.61],[1047,.78],[1319,.96]].forEach(([f,t],i) => {
+    playTone(f,t, i===6 ? .42 : .16, 'triangle', .16);
+  });
+}
+function playIncorrect() {
+  // Âm báo sai trầm đi xuống, khác hẳn giai điệu chúc mừng.
+  playTone(330, 0, 0.20, 'sawtooth', 0.24);
+  playTone(247, 0.22, 0.28, 'sawtooth', 0.22);
+}
+document.getElementById('soundBtn').addEventListener('click', () => {
+  soundEnabled = !soundEnabled;
+  const btn = document.getElementById('soundBtn');
+  btn.textContent = soundEnabled ? '🔊 Âm thanh: bật' : '🔇 Âm thanh: tắt';
+  btn.setAttribute('aria-pressed', String(soundEnabled));
+  if (soundEnabled) { getAudioContext(); playDropSound(); }
+});
+
+function shuffle(items) {
+  const a = [...items];
+  for (let i=a.length-1; i>0; i--) { const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  if (a.every((x,i)=>x.id===correctOrder[i])) [a[0],a[1]]=[a[1],a[0]];
+  return a;
+}
+function makeCard(cmd) {
+  const el = document.createElement('div');
+  el.className = 'command'; el.draggable = true; el.tabIndex = 0;
+  el.dataset.id = cmd.id;
+  el.innerHTML = `<span class="grip" aria-hidden="true">⠿</span><span class="cmdtext"></span><div style="float:right;display:flex;gap:4px;margin-top:5px"><button type="button" class="secondary up" aria-label="Đưa câu lệnh lên" style="padding:3px 8px;font-size:13px">↑</button><button type="button" class="secondary down" aria-label="Đưa câu lệnh xuống" style="padding:3px 8px;font-size:13px">↓</button></div>`;
+  el.querySelector('.cmdtext').textContent = cmd.text;
+  el.addEventListener('dragstart', e => { draggedId=cmd.id; el.classList.add('dragging'); e.dataTransfer.setData('text/plain',cmd.id); e.dataTransfer.effectAllowed='move'; });
+  el.addEventListener('dragend', () => { el.classList.remove('dragging'); draggedId=null; });
+  el.addEventListener('keydown', e => {
+    if(e.key==='ArrowUp' || e.key==='ArrowDown') { e.preventDefault(); moveCard(el,e.key==='ArrowUp'?-1:1); }
+  });
+  el.querySelector('.up').addEventListener('click', e=>{e.stopPropagation(); moveCard(el,-1);});
+  el.querySelector('.down').addEventListener('click', e=>{e.stopPropagation(); moveCard(el,1);});
+  return el;
+}
+function moveCard(el, direction) {
+  const parent=el.parentElement;
+  if(parent===bank && direction===1) { answer.appendChild(el); updateEmpty(); return; }
+  if(parent===answer && direction===-1 && el===answer.firstElementChild) { bank.appendChild(el); updateEmpty(); return; }
+  const sibling=direction<0?el.previousElementSibling:el.nextElementSibling;
+  if(sibling) parent.insertBefore(el,direction<0?sibling: sibling.nextElementSibling);
+  updateEmpty();
+  playDropSound();
+}
+function renderBank() {
+  bank.innerHTML=''; answer.innerHTML='<div class="slot" id="emptyHint">Thả câu lệnh vào đây…</div>';
+  shuffle(commands).forEach(c=>bank.appendChild(makeCard(c)));
+  updateEmpty();
+}
+function updateEmpty() {
+  const slot=answer.querySelector('.slot');
+  const hasCards=answer.querySelector('.command');
+  if(slot) slot.style.display=hasCards?'none':'block';
+}
+function enableDrop(zone) {
+  zone.addEventListener('dragover',e=>{e.preventDefault(); zone.style.backgroundColor='#e1f1ff';});
+  zone.addEventListener('dragleave',()=>{zone.style.backgroundColor='';});
+  zone.addEventListener('drop',e=>{
+    e.preventDefault(); zone.style.backgroundColor='';
+    const id=e.dataTransfer.getData('text/plain')||draggedId;
+    const card=document.querySelector(`.command[data-id="${id}"]`);
+    if(!card) return;
+    const target=e.target.closest('.command');
+    if(target && target!==card && target.parentElement===zone) {
+      const rect=target.getBoundingClientRect();
+      zone.insertBefore(card,e.clientY<rect.top+rect.height/2?target:target.nextSibling);
+    } else zone.appendChild(card);
+    updateEmpty();
+    playDropSound();
+  });
+}
+enableDrop(bank); enableDrop(answer);
+document.getElementById('checkBtn').addEventListener('click',()=>{
+  attempts++;
+  const order=[...answer.querySelectorAll('.command')].map(el=>el.dataset.id);
+  if(order.length!==commands.length) {
+    showFeedback('Em hãy đưa đủ 7 câu lệnh vào khu vực chương trình trước nhé!',false);
+    submitResult(0, false);
+    return;
+  }
+  let correct=0;
+  // Bốn câu lệnh đầu gồm chú thích và ba phép gán biến; ba phép gán có thể đổi chỗ cho nhau.
+  if(order[0] === 'comment') correct++;
+  const variableIds = new Set(['length','width','price']);
+  order.slice(1,4).forEach(id=>{if(variableIds.has(id)) correct++;});
+  ['area','cost','print'].forEach((id,i)=>{if(order[i+4]===id) correct++;});
+  const score=Math.round(correct/commands.length*100*(hintUsed?0.8:1));
+  scoreEl.textContent=score;
+  if(correct===commands.length) {
+    stopTimer();
+    submitResult(score, true);
+    showFeedback('🎉 Chính xác! Em đã sắp xếp đúng chương trình. Diện tích là 60 m² và chi phí là 9.000.000 đồng. Hoan hô! Em đã hoàn thành thử thách!',true);
+    playCelebration();
+    solution.classList.add('show');
+    solution.textContent=commands.map(c=>c.text).join('\n')+'\n\nKết quả: Chi phi cần mua gạch lát nền là: 9000000';
+  } else {
+    submitResult(score, false);
+    showFeedback(`Chưa đúng rồi! Em đã đặt đúng ${correct}/7 câu lệnh theo nhóm thứ tự. Lưu ý: ba câu lệnh chieu_dai = 12, chieu_rong = 5 và gia_gach = 150000 có thể đổi chỗ cho nhau. Sau đó tính diện tích, tính chi phí rồi mới in kết quả.`,false);
+    playIncorrect();
+    solution.classList.remove('show');
+  }
+});
+document.getElementById('hintBtn').addEventListener('click',()=>{
+  hintUsed=true;
+  showFeedback('💡 Gợi ý: Đặt dòng chú thích và ba câu lệnh khai báo biến ở đầu chương trình. Ba câu lệnh chieu_dai = 12, chieu_rong = 5 và gia_gach = 150000 có thể đổi chỗ cho nhau. Tiếp theo tính diện tích, tính chi phí và đặt lệnh print() cuối cùng.',false);
+});
+document.getElementById('resetBtn').addEventListener('click',()=>{
+  hintUsed=false; attempts=0; scoreEl.textContent='0'; feedback.className='feedback'; feedback.textContent='';
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval=null; startedAt=null; elapsedSeconds=0; document.getElementById('timer').textContent='00:00';
+  solution.classList.remove('show'); solution.textContent=''; renderBank();
+});
+function showFeedback(message, good) {
+  feedback.textContent=message;
+  feedback.className='feedback show '+(good?'good':'try');
+}
+renderBank();
+loadLeaderboard();
+if (onlineConfigured()) setInterval(loadLeaderboard, 15000);
+</script>
+</body>
+</html>
